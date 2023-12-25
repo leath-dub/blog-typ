@@ -1,0 +1,22 @@
+package main
+
+templ blog(title string, posts []*Post) {
+    <!doctype html>
+    <html lang="en">
+        <head>
+            <meta charset="utf-8"></meta>
+            <meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+            <link rel="stylesheet" href="css/pico.min.css"></link>
+            <title>{ title }</title>
+            <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+            <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body>
+            for _, post := range posts {
+                <div>
+                    <a class="font-medium text-blue-600 dark:text-blue-500 hover:underline" href={ templ.SafeURL(post.GetSlug()) }>{ post.Title }</a>
+                </div>
+            }
+        </body>
+    </html>
+}
