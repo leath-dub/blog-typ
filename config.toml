@@ -1,1 +1,2 @@
-Posts = "./blogs"
+Posts = "./blogs/"
+Build = "./dist/"

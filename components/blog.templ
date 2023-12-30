@@ -1,6 +1,15 @@
-package main
+package components
 
-templ blog(title string, posts []*Post) {
+import "blog-typ/temp"
+
+templ Component(message string) {
+    <ul>
+        <li>{ message }</li>
+        <li>{ message }</li>
+    </ul>
+}
+
+templ Blog(title string, posts []temp.Post) {
     <!doctype html>
     <html lang="en">
         <head>

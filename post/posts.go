@@ -1,7 +1,6 @@
-package main
+package post
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -13,13 +12,14 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/gosimple/slug"
-	"github.com/yuin/goldmark"
 )
+
+type PluginFunc func ([]byte) ([]byte, error)
 
 type Post struct {
 	Date time.Time	
 	Title string
-	Content string
+	Content []byte
 }
 
 func Unsafe(html string) templ.Component {
@@ -33,8 +33,8 @@ func (post *Post) GetSlug() string {
 	return path.Join(post.Date.Format("2006/01/02"), slug.Make(post.Title), "/")
 }
 
-func NewPost(fileName string) (*Post, error) {
-	re := regexp.MustCompile(`(\d{4}-\d{2}-\d{2})_(.*)\.md$`)
+func NewPost(fileName string, plugins ...PluginFunc) (*Post, error) {
+	re := regexp.MustCompile(`(\d{4}-\d{2}-\d{2})_(.*)\.html$`)
 	matches := re.FindStringSubmatch(fileName)
 	if matches == nil {
 		return nil, errors.New("Invalid format for post file name")
@@ -52,19 +52,20 @@ func NewPost(fileName string) (*Post, error) {
 
 	title := matches[2]
 
-	// Convert the content markdown to html
-	var buf bytes.Buffer
-	if err := goldmark.Convert(data, &buf); err != nil {
-		return nil, err
+	for _, plugin := range plugins {
+		data, err = plugin(data)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	post := Post {
 		Date: date,
 		Title: title,
-		Content: buf.String(),
+		Content: data,
 	}
 
-	content := Unsafe(buf.String())
+	content := Unsafe(string(data))
 	http.Handle("/" + post.GetSlug(), templ.Handler(content))
 
 	return &post, nil

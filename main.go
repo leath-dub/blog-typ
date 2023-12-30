@@ -1,59 +1,46 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
+	"blog-typ/cmd"
+	"blog-typ/lib"
+	"log/slog"
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/a-h/templ"
 )
 
-type Config struct {
-	Posts string
-}
+func ConfigFromFile(fpath string) (lib.Config, error) {
+	var result lib.Config
 
-func generatePosts(path string) ([]*Post, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
+	_, err := toml.DecodeFile(fpath, &result)
 
-	var posts []*Post
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			post, err := NewPost("./blogs/" + entry.Name())
-			if err != nil {
-				return nil, err
-			}
-			posts = append(posts, post)
-		}
-	}
-
-	if len(posts) < 1 {
-		return nil, errors.New("No posts found in " + path)
-	}
-
-	return posts, nil
+	return result, err
 }
 
 func main() {
-	var conf Config
-	_, err := toml.DecodeFile("./config.toml", &conf)
+	conf, err := ConfigFromFile("./config.toml")
 	if err != nil {
-		panic(err)
+		slog.Error("Reading Config", "error", err)
+		os.Exit(1)
 	}
 
-	posts, err := generatePosts(conf.Posts)
+	c, err := cmd.Parse(os.Args, conf)
 	if err != nil {
-		panic(err)
+		slog.Error("Parsing Command", "error", err)
+		os.Exit(1)
 	}
 
-	blog_site := blog("Third Year Project", posts)
+	res, err := c.Run()
+	if err != nil {
+		slog.Error("Running build command", "error", err)
+		os.Exit(1)
+	}
 
-	http.Handle("/", templ.Handler(blog_site))
-
-	fmt.Println("Listening on :3000")
-	http.ListenAndServe(":3000", nil)
+	if buildRes, ok := res.(*cmd.BuildCmdResult); !ok {
+		slog.Error("Failed to interpret `build' command result")
+		os.Exit(1)
+	} else if err := buildRes.Commit(); err != nil {
+		slog.Error("Commiting build result", "error", err)
+		os.Exit(1)
+	}
 }
